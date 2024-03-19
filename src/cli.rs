@@ -1,5 +1,11 @@
+// External dependencies
 use clap::{App, Arg, ArgMatches};
 
+// Parses command-line arguments using clap.
+// 
+// # Returns
+// 
+// A structure containing the matched command-line arguments.
 pub fn parse_args() -> ArgMatches {
     App::new("Currency Converter")
         .version("1.0")
