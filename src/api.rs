@@ -5,11 +5,20 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
 
-// ApiResponse struct to deserialize JSON response from the currency conversion API.
+// Represents the response structure of the API for currencies pair.
 #[derive(Debug, Deserialize)]
-pub struct ApiResponse {
-    pub result: String, // Indicates the success or failure of the API request.
-    pub conversion_rates: HashMap<String, f64>, // Stores currency conversion rates.
+struct ConversionRateResponse {
+    result: String,
+    conversion_rate: f64,
+    // Add other relevant fields if necessary
+}
+
+// Represents the response structure of the API for all currencies.
+#[derive(Debug, Deserialize)]
+struct AllCurrenciesResponse {
+    result: String,
+    conversion_rates: HashMap<String, f64>,
+    // Add other relevant fields if necessary
 }
 
 // Custom error type that encapsulates various error kinds
@@ -46,19 +55,20 @@ impl Error for ApiError {}
 // 
 // A Result containing the exchange rate as f64 if successful, or an Error if not.
 pub async fn fetch_exchange_rate(api_key: &str, source: &str, target: &str) -> Result<f64, ApiError> {
-    let url = format!("https://v6.exchangerate-api.com/v6/{}/latest/{}", api_key, source);
-    let response = reqwest::get(&url).await.map_err(ApiError::Network)?;
-    
-    if !response.status().is_success() {
-        let error_msg = response.text().await.unwrap_or("Unknown error occurred".to_string());
-        return Err(ApiError::ApiResponseError(error_msg));
+    let url = format!("https://v6.exchangerate-api.com/v6/{}/pair/{}/{}", api_key, source, target);
+    let resp = reqwest::get(&url).await.map_err(ApiError::Network)?;
+
+    if !resp.status().is_success() {
+        return Err(ApiError::ApiResponseError("Failed to fetch data from the API. One or both of the curriencies are not valid.".into()));
     }
 
-    let data: ApiResponse = response.json().await.map_err(ApiError::Network)?;
-
-    data.conversion_rates.get(target)
-        .cloned()
-        .ok_or(ApiError::CurrencyNotFound)
+    let data: ConversionRateResponse = resp.json().await.map_err(ApiError::Network)?;
+    
+    if data.result == "success" {
+        Ok(data.conversion_rate)
+    } else {
+        Err(ApiError::ApiResponseError("API responded with an error.".into()))
+    }
 }
 
 // Fetches a list of all available currencies and their exchange rates.
@@ -84,15 +94,20 @@ pub async fn fetch_exchange_rate(api_key: &str, source: &str, target: &str) -> R
 // # }
 // ```
 pub async fn fetch_all_currencies(api_key: &str) -> Result<HashMap<String, f64>, ApiError> {
-    let url = format!("https://v6.exchangerate-api.com/v6/{}/latest/USD", api_key); // Example: Using USD as base
+    println!("Fetching all currency rates from the API.");
+    let url = format!("https://v6.exchangerate-api.com/v6/{}/latest/USD", api_key);
     let response = reqwest::get(&url).await.map_err(ApiError::Network)?;
-    
+
     if !response.status().is_success() {
-        let error_msg = response.text().await.unwrap_or_else(|_| "Unknown error occurred.".to_string());
+        let error_msg = response.text().await.unwrap_or_else(|_| "Unknown error occurred.".into());
         return Err(ApiError::ApiResponseError(error_msg));
     }
 
-    let data: ApiResponse = response.json().await.map_err(ApiError::Network)?;
+    let data: AllCurrenciesResponse = response.json().await.map_err(ApiError::Network)?;
 
-    Ok(data.conversion_rates)
+    if data.result == "success" {
+        Ok(data.conversion_rates)
+    } else {
+        Err(ApiError::ApiResponseError("API responded with an error.".into()))
+    }
 }

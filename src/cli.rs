@@ -16,19 +16,20 @@ pub fn parse_args() -> ArgMatches {
               .long("source")
               .value_name("SOURCE")
               .help("Source currency code (e.g., USD)")
-              .takes_value(true)) // Note: Required is removed
+              .takes_value(true)) 
          .arg(Arg::with_name("target")
               .short('t')
               .long("target")
               .value_name("TARGET")
               .help("Target currency code (e.g., EUR)")
-              .takes_value(true)) // Note: Required is removed
+              .takes_value(true)) 
          .arg(Arg::with_name("amount")
               .short('a')
               .long("amount")
               .value_name("AMOUNT")
               .help("Amount to be converted")
-              .takes_value(true)) // Note: Required is removed
+              .allow_hyphen_values(true) 
+              .takes_value(true)) 
          .arg(Arg::with_name("list")
               .long("list")
               .help("Lists all available currencies and their current exchange rates"))

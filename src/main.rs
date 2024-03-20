@@ -29,15 +29,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let api_key = config::load_api_key()?;
         run_interactive_mode(&api_key).await?;
     } else {
-        // Proceed with currency conversion if the list argument is not present.
         let source_currency = matches.value_of("source").unwrap();
         let target_currency = matches.value_of("target").unwrap();
-        let amount: f64 = matches.value_of("amount").unwrap().parse().expect("Failed to parse the amount as a number.");
+        let amount_str = matches.value_of("amount").unwrap();
+        let amount: f64 = match amount_str.parse::<f64>() {
+            Ok(n) if n > 0.0 => n,
+            _ => {
+                eprintln!("Amount must be a positive number.");
+                return Err("Invalid amount provided".into());
+            }
+        };
 
         match convert_currency(&api_key, source_currency, target_currency, amount).await {
             Ok((converted_amount, rate)) => {
                 println!("Exchange Rate: {}", rate);
-                println!("Converted Amount: {}", converted_amount);
+                println!("Converted Amount: {:.2}", converted_amount);
             },
             Err(e) => handle_api_error(e),
         }
@@ -50,7 +56,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 async fn run_interactive_mode(api_key: &str) -> Result<(), Box<dyn Error>> {
     let mut source = String::new();
     let mut target = String::new();
-    let mut amount = String::new();
 
     println!("Do you want to print all available currencies and their exchange rates? (yes/no)");
     let mut list = String::new();
@@ -70,9 +75,15 @@ async fn run_interactive_mode(api_key: &str) -> Result<(), Box<dyn Error>> {
     println!("Enter target currency code (e.g., EUR):");
     io::stdin().read_line(&mut target)?;
     println!("Enter amount to be converted:");
-    io::stdin().read_line(&mut amount)?;
-
-    let amount: f64 = amount.trim().parse().expect("Please enter a valid number for amount.");
+    let mut amount_str = String::new();
+    io::stdin().read_line(&mut amount_str)?;
+    let amount: f64 = match amount_str.trim().parse::<f64>() {
+        Ok(n) if n > 0.0 => n,
+        _ => {
+            eprintln!("Amount must be a positive number.");
+            return Err("Invalid amount provided".into());
+        }
+    };
 
     match convert_currency(api_key, source.trim(), target.trim(), amount).await {
         Ok((converted_amount, rate)) => {
