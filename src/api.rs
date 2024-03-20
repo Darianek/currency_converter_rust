@@ -4,6 +4,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
+use crate::GLOBAL_RATE_CACHE;
 
 // Represents the response structure of the API for currencies pair.
 #[derive(Debug, Deserialize)]
@@ -55,6 +56,13 @@ impl Error for ApiError {}
 // 
 // A Result containing the exchange rate as f64 if successful, or an Error if not.
 pub async fn fetch_exchange_rate(api_key: &str, source: &str, target: &str) -> Result<f64, ApiError> {
+    let pair = format!("{}_{}", source, target);
+    if let Some(rate) = GLOBAL_RATE_CACHE.get(&pair) {
+        println!("Rate for {} fetched from cache.", pair);
+        return Ok(rate);
+    }
+    println!("Fetching rate for {} from the API.", pair);
+
     let url = format!("https://v6.exchangerate-api.com/v6/{}/pair/{}/{}", api_key, source, target);
     let resp = reqwest::get(&url).await.map_err(ApiError::Network)?;
 
@@ -65,6 +73,7 @@ pub async fn fetch_exchange_rate(api_key: &str, source: &str, target: &str) -> R
     let data: ConversionRateResponse = resp.json().await.map_err(ApiError::Network)?;
     
     if data.result == "success" {
+        GLOBAL_RATE_CACHE.set(pair, data.conversion_rate);
         Ok(data.conversion_rate)
     } else {
         Err(ApiError::ApiResponseError("API responded with an error.".into()))

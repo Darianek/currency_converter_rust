@@ -54,43 +54,54 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 // Function to run the program in interactive mode.
 async fn run_interactive_mode(api_key: &str) -> Result<(), Box<dyn Error>> {
-    let mut source = String::new();
-    let mut target = String::new();
+    loop {
+        println!("Do you want to print all available currencies and their exchange rates? (yes/no)");
+        let mut list = String::new();
+        io::stdin().read_line(&mut list)?;
+        if list.trim().eq_ignore_ascii_case("yes") {
+            match api::fetch_all_currencies(api_key).await {
+                Ok(rates) => {
+                    for (currency, rate) in rates {
+                        println!("{}: {}", currency, rate);
+                    }
+                },
+                Err(e) => handle_api_error(Box::new(e)),
+            }
+        }
+        
+        println!("Enter source currency code (e.g., USD):");
+        let mut source = String::new();
+        io::stdin().read_line(&mut source)?;
 
-    println!("Do you want to print all available currencies and their exchange rates? (yes/no)");
-    let mut list = String::new();
-    io::stdin().read_line(&mut list)?;
-    if list.trim().to_lowercase() == "yes" {
-        match api::fetch_all_currencies(api_key).await {
-            Ok(rates) => {
-                for (currency, rate) in rates {
-                    println!("{}: {}", currency, rate);
-                }
+        println!("Enter target currency code (e.g., EUR):");
+        let mut target = String::new();
+        io::stdin().read_line(&mut target)?;
+
+        println!("Enter amount to be converted:");
+        let mut amount_str = String::new();
+        io::stdin().read_line(&mut amount_str)?;
+        let amount: f64 = match amount_str.trim().parse::<f64>() {
+            Ok(n) if n > 0.0 => n,
+            _ => {
+                eprintln!("Amount must be a positive number.");
+                continue; // Ask again
+            }
+        };
+
+        match convert_currency(api_key, source.trim(), target.trim(), amount).await {
+            Ok((converted_amount, rate)) => {
+                println!("Exchange Rate: {}", rate);
+                println!("Converted Amount: {:.2}", converted_amount);
             },
-            Err(e) => handle_api_error(Box::new(e)),
+            Err(e) => handle_api_error(e),
         }
-    }
-    println!("Enter source currency code (e.g., USD):");
-    io::stdin().read_line(&mut source)?;
-    println!("Enter target currency code (e.g., EUR):");
-    io::stdin().read_line(&mut target)?;
-    println!("Enter amount to be converted:");
-    let mut amount_str = String::new();
-    io::stdin().read_line(&mut amount_str)?;
-    let amount: f64 = match amount_str.trim().parse::<f64>() {
-        Ok(n) if n > 0.0 => n,
-        _ => {
-            eprintln!("Amount must be a positive number.");
-            return Err("Invalid amount provided".into());
-        }
-    };
 
-    match convert_currency(api_key, source.trim(), target.trim(), amount).await {
-        Ok((converted_amount, rate)) => {
-            println!("Exchange Rate: {}", rate);
-            println!("Converted Amount: {}", converted_amount);
-        },
-        Err(e) => handle_api_error(e),
+        println!("Do you want to perform another conversion? (yes/no)");
+        let mut decision = String::new();
+        io::stdin().read_line(&mut decision)?;
+        if decision.trim().eq_ignore_ascii_case("no") {
+            break; // Exit the loop and thus the interactive mode
+        }
     }
 
     Ok(())
