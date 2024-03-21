@@ -16,7 +16,6 @@ currency_converter/
 │ ├── api.rs # Module for handling API calls and responses.
 │ └── config.rs # Module for application configuration, e.g., loading environment variables.
 └── tests/ # Directory for integration tests.
-└── api_tests.rs # Example integration tests for the API functionality.
 ```
 
 ## Getting Started
